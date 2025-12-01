@@ -1,0 +1,22 @@
+[
+  {
+    "teamName": "Team Alpha",
+    "authors": [
+      "john.doe",
+      "jane.smith"
+    ]
+  },
+  {
+    "teamName": "Team Beta",
+    "authors": [
+      "bob.jones",
+      "alice.williams"
+    ]
+  },
+  {
+    "teamName": "Team Gamma",
+    "authors": [
+      "charlie.brown"
+    ]
+  }
+]
