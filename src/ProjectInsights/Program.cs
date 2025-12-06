@@ -125,12 +125,13 @@ class Program
             config.RepoPath,
             teams);
 
-        var prInfos = await prAnalysisService.AnalyzePullRequestsAsync(config.StartDate, config.EndDate);
+        var prBatchProcessor = new PrBatchProcessor(prAnalysisService, githubService);
+
+        var prInfos = await prBatchProcessor.ProcessPrsInBatchesAsync(config.StartDate, config.EndDate);
         Console.WriteLine();
 
         // 5. Get detailed stats
-        var pullRequests = await githubService.GetMergedPullRequestsAsync(config.StartDate, config.EndDate);
-        var projectGroupStats = await prAnalysisService.AnalyzeWithDetailedStatsAsync(prInfos, pullRequests);
+        var projectGroupStats = await prAnalysisService.AnalyzeWithDetailedStatsAsync(prInfos);
         Console.WriteLine();
 
         // 6. Build teams matrix

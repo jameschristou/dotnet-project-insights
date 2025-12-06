@@ -76,7 +76,7 @@ public class GitHubService
         return files.ToList();
     }
 
-    private async Task CheckRateLimitAsync()
+    public async Task CheckRateLimitAsync()
     {
         try
         {

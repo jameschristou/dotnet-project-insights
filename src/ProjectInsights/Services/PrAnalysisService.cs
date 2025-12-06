@@ -134,9 +134,7 @@ public class PrAnalysisService
         return stats;
     }
 
-    public async Task<Dictionary<string, ProjectGroupStats>> AnalyzeWithDetailedStatsAsync(
-        List<PrInfo> prInfos, 
-        List<PullRequest> pullRequests)
+    public async Task<Dictionary<string, ProjectGroupStats>> AnalyzeWithDetailedStatsAsync(List<PrInfo> prInfos)
     {
         Console.WriteLine("Calculating detailed project group statistics with file analysis...");
         
