@@ -37,25 +37,14 @@ public class PrAnalysisService
             count++;
             Console.WriteLine($"Analyzing PR #{pr.Number}: {pr.Title} ({count}/{prs.Count})");
 
-            var prInfo = new PrInfo
-            {
-                Number = pr.Number,
-                Title = pr.Title,
-                Author = pr.User.Login,
-                MergedAt = pr.MergedAt!.Value.DateTime,
-                Team = _configService.GetTeamForAuthor(_teams, pr.User.Login)
-            };
-
             // Get files changed in this PR
             var files = await _gitHubService.GetPullRequestFilesAsync(pr.Number);
 
             // Group files by project group
             var filesByProjectGroup = new Dictionary<string, int>();
-            
             foreach (var file in files)
             {
                 var projectGroup = _projectDiscovery.GetProjectGroupForFile(file.FileName);
-                
                 if (!filesByProjectGroup.ContainsKey(projectGroup))
                 {
                     filesByProjectGroup[projectGroup] = 0;
@@ -63,7 +52,17 @@ public class PrAnalysisService
                 filesByProjectGroup[projectGroup]++;
             }
 
-            prInfo.FileCountByProjectGroup = filesByProjectGroup;
+            var prInfo = new PrInfo
+            {
+                Number = pr.Number,
+                Title = pr.Title,
+                Author = pr.User.Login,
+                MergedAt = pr.MergedAt!.Value.DateTime,
+                Team = _configService.GetTeamForAuthor(_teams, pr.User.Login),
+                FileCountByProjectGroup = filesByProjectGroup,
+                Files = files.ToList() // Store detailed file info
+            };
+
             prInfoList.Add(prInfo);
         }
 
@@ -158,8 +157,8 @@ public class PrAnalysisService
 
         foreach (var prInfo in prInfos)
         {
-            var pr = pullRequests.First(p => p.Number == prInfo.Number);
-            var files = await _gitHubService.GetPullRequestFilesAsync(pr.Number);
+            // Use cached file details from PrInfo
+            var files = prInfo.Files;
 
             foreach (var file in files)
             {
@@ -180,8 +179,6 @@ public class PrAnalysisService
                 prsByProjectGroup[projectGroup].Add(prInfo.Number);
 
                 // Accumulate stats
-                // Note: GitHub API provides changes which is additions + deletions
-                // For whitespace-ignore logic, we'd need to use LibGit2Sharp directly on commits
                 stats[projectGroup].TotalLinesChanged += file.Changes;
 
                 if (file.Status == "added")

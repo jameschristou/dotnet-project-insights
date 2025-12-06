@@ -1,3 +1,5 @@
+using Octokit;
+
 namespace ProjectInsights.Models;
 
 public class PrInfo
@@ -8,4 +10,5 @@ public class PrInfo
     public DateTime MergedAt { get; set; }
     public string Team { get; set; } = string.Empty;
     public Dictionary<string, int> FileCountByProjectGroup { get; set; } = new();
+    public List<PullRequestFile> Files { get; set; } = new();
 }
