@@ -63,6 +63,9 @@ class Program
                     case "--github-repo":
                         config.GitHubRepo = value;
                         break;
+                    case "--github-base-branch":
+                        config.GitHubBaseBranch = value;
+                        break;
                 }
                 i++; // Skip the value in next iteration
             }
@@ -123,11 +126,13 @@ class Program
             githubService,
             configService,
             config.RepoPath,
-            teams);
+            teams,
+            config.GitHubOwner,
+            config.GitHubRepo);
 
         var prBatchProcessor = new PrBatchProcessor(prAnalysisService, githubService);
 
-        var prInfos = await prBatchProcessor.ProcessPrsInBatchesAsync(config.StartDate, config.EndDate);
+        var prInfos = await prBatchProcessor.ProcessPrsInBatchesAsync(config.StartDate, config.EndDate, config.GitHubBaseBranch);
         Console.WriteLine();
 
         // 5. Get detailed stats

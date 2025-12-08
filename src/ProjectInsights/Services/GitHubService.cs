@@ -20,17 +20,18 @@ public class GitHubService
         };
     }
 
-    public async Task<List<PullRequest>> GetMergedPullRequestsAsync(DateTime startDate, DateTime endDate)
+    public async Task<List<PullRequest>> GetMergedPullRequestsAsync(DateTime startDate, DateTime endDate, string baseBranch)
     {
-        Console.WriteLine($"Fetching PRs merged between {startDate:yyyy-MM-dd} and {endDate:yyyy-MM-dd}...");
+        Console.WriteLine($"Fetching PRs merged between {startDate:yyyy-MM-dd} and {endDate:yyyy-MM-dd} into branch '{baseBranch}'...");
 
-        // Use GitHub Search API with date filtering
+        // Use GitHub Search API with date filtering and base branch
         var searchRequest = new SearchIssuesRequest
         {
             Type = IssueTypeQualifier.PullRequest,
             Repos = new RepositoryCollection { $"{_owner}/{_repo}" },
             Is = new[] { IssueIsQualifier.Merged },
-            Merged = new DateRange(startDate, endDate)
+            Merged = new DateRange(startDate, endDate),
+            Base = baseBranch
         };
 
         var searchResult = await _client.Search.SearchIssues(searchRequest);
@@ -42,10 +43,10 @@ public class GitHubService
             _firstRequest = false;
         }
 
-        Console.WriteLine($"Found {searchResult.TotalCount} merged PRs in date range");
+        Console.WriteLine($"Found {searchResult.TotalCount} merged PRs in date range and branch");
 
-        // Convert search results to PullRequest objects
-        var prNumbers = searchResult.Items.Select(i => i.Number).ToList();
+        // Convert search results to PullRequest objects, ensuring uniqueness
+        var prNumbers = searchResult.Items.Select(i => i.Number).Distinct().ToList();
         var pullRequests = new List<PullRequest>();
 
         foreach (var prNumber in prNumbers)

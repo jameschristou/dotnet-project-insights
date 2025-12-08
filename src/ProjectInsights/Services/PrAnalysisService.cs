@@ -1,4 +1,3 @@
-using LibGit2Sharp;
 using Octokit;
 using ProjectInsights.Models;
 
@@ -11,29 +10,65 @@ public class PrAnalysisService
     private readonly ConfigurationService _configService;
     private readonly string _repoPath;
     private readonly List<Models.Team> _teams;
+    private readonly string _repoOwner;
+    private readonly string _repoName;
 
     public PrAnalysisService(
         ProjectDiscoveryService projectDiscovery,
         GitHubService gitHubService,
         ConfigurationService configService,
         string repoPath,
-        List<Models.Team> teams)
+        List<Models.Team> teams,
+        string repoOwner,
+        string repoName)
     {
         _projectDiscovery = projectDiscovery;
         _gitHubService = gitHubService;
         _configService = configService;
         _repoPath = repoPath;
         _teams = teams;
+        _repoOwner = repoOwner;
+        _repoName = repoName;
     }
 
-    public async Task<List<PrInfo>> AnalyzePullRequestsAsync(DateTime startDate, DateTime endDate)
+    /// <summary>
+    /// Determines if a PR should be processed (i.e., is not a release PR).
+    /// Only counts PR links from the same repository as specified in constructor.
+    /// </summary>
+    /// <param name="pr">The pull request to check.</param>
+    /// <returns>True if the PR should be processed, false if it should be ignored.</returns>
+    public bool ShouldProcessPr(PullRequest pr)
     {
-        var prs = await _gitHubService.GetMergedPullRequestsAsync(startDate, endDate);
+        // Check if title contains 'release' (case-insensitive)
+        if (pr.Title != null && pr.Title.ToLower().Contains("release"))
+            return false;
+
+        // Check if body contains links to 2 or more other PRs from the same repo
+        if (!string.IsNullOrEmpty(pr.Body) && !string.IsNullOrEmpty(_repoOwner) && !string.IsNullOrEmpty(_repoName))
+        {
+            // Regex for PR links in this repo: https://github.com/{owner}/{repo}/pull/{number}
+            var prLinkPattern = $@"https://github\\.com/{System.Text.RegularExpressions.Regex.Escape(_repoOwner)}/{System.Text.RegularExpressions.Regex.Escape(_repoName)}/pull/\\d+";
+            var matches = System.Text.RegularExpressions.Regex.Matches(pr.Body, prLinkPattern);
+            if (matches.Count >= 2)
+                return false;
+        }
+        return true;
+    }
+
+    public async Task<List<PrInfo>> AnalyzePullRequestsAsync(DateTime startDate, DateTime endDate, string baseBranch)
+    {
+        var prs = await _gitHubService.GetMergedPullRequestsAsync(startDate, endDate, baseBranch);
         var prInfoList = new List<PrInfo>();
 
         int count = 0;
         foreach (var pr in prs)
         {
+            if (!ShouldProcessPr(pr))
+            {
+                Console.WriteLine($"Skipping PR #{pr.Number}: {pr.Title}");
+                continue;
+            }
+
             count++;
             Console.WriteLine($"Analyzing PR #{pr.Number}: {pr.Title} ({count}/{prs.Count})");
 

@@ -12,4 +12,5 @@ public class AppConfig
     public string RepoPath { get; set; } = string.Empty;
     public string GitHubOwner { get; set; } = string.Empty;
     public string GitHubRepo { get; set; } = string.Empty;
+    public string GitHubBaseBranch { get; set; } = "main";
 }

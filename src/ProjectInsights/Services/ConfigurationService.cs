@@ -32,7 +32,10 @@ public class ConfigurationService
         }
 
         var json = File.ReadAllText(path);
-        var teams = JsonSerializer.Deserialize<List<Team>>(json);
+        var teams = JsonSerializer.Deserialize<List<Team>>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
 
         if (teams == null || teams.Count == 0)
         {

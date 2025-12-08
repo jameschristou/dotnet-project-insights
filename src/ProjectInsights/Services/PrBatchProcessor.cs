@@ -17,7 +17,7 @@ namespace ProjectInsights.Services
             _gitHubService = gitHubService;
         }
 
-        public async Task<List<PrInfo>> ProcessPrsInBatchesAsync(DateTime startDate, DateTime endDate)
+        public async Task<List<PrInfo>> ProcessPrsInBatchesAsync(DateTime startDate, DateTime endDate, string baseBranch)
         {
             var allPrInfos = new List<PrInfo>();
             DateTime batchStart = startDate;
@@ -28,8 +28,9 @@ namespace ProjectInsights.Services
                 if (batchEnd > endDate)
                     batchEnd = endDate;
 
-                Console.WriteLine($"Processing PRs for batch: {batchStart:yyyy-MM-dd} to {batchEnd:yyyy-MM-dd}");
-                var prInfos = await _prAnalysisService.AnalyzePullRequestsAsync(batchStart, batchEnd);
+                Console.WriteLine($"Processing PRs for batch: {batchStart:yyyy-MM-dd} to {batchEnd:yyyy-MM-dd} (base branch: {baseBranch})");
+                var prInfos = await _prAnalysisService.AnalyzePullRequestsAsync(batchStart, batchEnd, baseBranch);
+
                 allPrInfos.AddRange(prInfos);
 
                 // Check rate limit after each batch
