@@ -1,4 +1,5 @@
 using Octokit;
+using ProjectInsights.Models;
 
 namespace ProjectInsights.Services;
 
@@ -20,7 +21,10 @@ public class GitHubService
         };
     }
 
-    public async Task<List<PullRequest>> GetMergedPullRequestsAsync(DateTime startDate, DateTime endDate, string baseBranch)
+    /// <summary>
+    /// Gets merged PRs using GitHub API, including detecting and expanding rollup PRs.
+    /// </summary>
+    public async Task<List<LocalPullRequest>> GetMergedPullRequestsAsync(DateTime startDate, DateTime endDate, string baseBranch)
     {
         Console.WriteLine($"Fetching PRs merged between {startDate:yyyy-MM-dd} and {endDate:yyyy-MM-dd} into branch '{baseBranch}'...");
 
@@ -45,17 +49,73 @@ public class GitHubService
 
         Console.WriteLine($"Found {searchResult.TotalCount} merged PRs in date range and branch");
 
-        // Convert search results to PullRequest objects, ensuring uniqueness
+        var pullRequestsDict = new Dictionary<int, LocalPullRequest>();
+
+        // Convert search results to PullRequest objects
         var prNumbers = searchResult.Items.Select(i => i.Number).Distinct().ToList();
-        var pullRequests = new List<PullRequest>();
 
         foreach (var prNumber in prNumbers)
         {
+            Console.WriteLine($"Getting PR #{prNumber} using API");
+
             var pr = await _client.PullRequest.Get(_owner, _repo, prNumber);
-            pullRequests.Add(pr);
             
+            // Check if this is a rollup PR (title contains "release" or body has 2+ PR links)
+            var isRollupPr = IsRollupPr(pr);
+
+            var localPr = new LocalPullRequest
+            {
+                Number = pr.Number,
+                Title = pr.Title,
+                Author = pr.User.Login,
+                MergedAt = pr.MergedAt!.Value.DateTime,
+                Body = pr.Body ?? string.Empty,
+                MergeCommitSha = pr.MergeCommitSha ?? string.Empty,
+                IsRollupPr = isRollupPr
+            };
+
+            pullRequestsDict[prNumber] = localPr;
+
+            // If this is a rollup PR, extract individual PRs from the body
+            //if (isRollupPr)
+            //{
+            //    Console.WriteLine($"Detected rollup PR #{prNumber}, extracting individual PRs...");
+            //    var individualPrNumbers = ExtractPrNumbersFromBody(pr.Body ?? string.Empty);
+                
+            //    foreach (var individualPrNumber in individualPrNumbers)
+            //    {
+            //        // Don't overwrite if we already have this PR
+            //        if (!pullRequestsDict.ContainsKey(individualPrNumber))
+            //        {
+            //            try
+            //            {
+            //                var individualPr = await _client.PullRequest.Get(_owner, _repo, individualPrNumber);
+                            
+            //                var individualLocalPr = new LocalPullRequest
+            //                {
+            //                    Number = individualPr.Number,
+            //                    Title = individualPr.Title,
+            //                    Author = individualPr.User.Login,
+            //                    MergedAt = localPr.MergedAt, // Use rollup merge time
+            //                    Body = individualPr.Body ?? string.Empty,
+            //                    MergeCommitSha = individualPr.MergeCommitSha ?? string.Empty,
+            //                    IsRollupPr = false
+            //                };
+
+            //                pullRequestsDict[individualPrNumber] = individualLocalPr;
+            //            }
+            //            catch (NotFoundException)
+            //            {
+            //                Console.WriteLine($"  Warning: PR #{individualPrNumber} not found, skipping");
+            //            }
+            //        }
+            //    }
+                
+            //    Console.WriteLine($"  Extracted {individualPrNumbers.Count} individual PRs from rollup");
+            //}
+
             // Check rate limit periodically
-            if (pullRequests.Count % 50 == 0)
+            if (pullRequestsDict.Count % 50 == 0)
             {
                 await CheckRateLimitAsync();
             }
@@ -64,17 +124,56 @@ public class GitHubService
         // Final rate limit check
         await CheckRateLimitAsync();
 
-        return pullRequests;
+        Console.WriteLine($"Total PRs (including rollup expansion): {pullRequestsDict.Count}");
+        return pullRequestsDict.Values.OrderBy(pr => pr.MergedAt).ToList();
     }
 
-    public async Task<List<PullRequestFile>> GetPullRequestFilesAsync(int prNumber)
+    /// <summary>
+    /// Determines if a PR is a rollup PR by checking title and body.
+    /// </summary>
+    private bool IsRollupPr(PullRequest pr)
     {
-        var files = await _client.PullRequest.Files(_owner, _repo, prNumber);
-        
-        // Check rate limit after each request
-        await CheckRateLimitAsync();
+        // Check if title contains 'release' (case-insensitive)
+        if (pr.Title != null && pr.Title.ToLower().Contains("release"))
+            return true;
 
-        return files.ToList();
+        // Check if body contains links to 2 or more other PRs from the same repo
+        if (!string.IsNullOrEmpty(pr.Body))
+        {
+            var prNumbers = ExtractPrNumbersFromBody(pr.Body);
+            if (prNumbers.Count >= 2)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Extracts PR numbers from text (looking for PR links like https://github.com/owner/repo/pull/123).
+    /// </summary>
+    private List<int> ExtractPrNumbersFromBody(string body)
+    {
+        var prNumbers = new List<int>();
+        
+        if (string.IsNullOrEmpty(body))
+            return prNumbers;
+
+        // Regex for PR links in this repo: https://github.com/{owner}/{repo}/pull/{number}
+        var prLinkPattern = $@"https://github\.com/{System.Text.RegularExpressions.Regex.Escape(_owner)}/{System.Text.RegularExpressions.Regex.Escape(_repo)}/pull/(\d+)";
+        var matches = System.Text.RegularExpressions.Regex.Matches(body, prLinkPattern);
+        
+        foreach (System.Text.RegularExpressions.Match match in matches)
+        {
+            if (int.TryParse(match.Groups[1].Value, out int prNumber))
+            {
+                if (!prNumbers.Contains(prNumber))
+                {
+                    prNumbers.Add(prNumber);
+                }
+            }
+        }
+
+        return prNumbers;
     }
 
     public async Task CheckRateLimitAsync()

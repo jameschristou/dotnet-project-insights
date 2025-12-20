@@ -48,3 +48,5 @@ teams.json
 
 # Runner scripts (contain credentials)
 run-project-insights.ps1
+/.vscode/launch.json
+/src/ProjectInsights/Properties/launchSettings.json

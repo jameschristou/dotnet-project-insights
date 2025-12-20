@@ -1,12 +1,12 @@
 namespace ProjectInsights.Models;
 
-public class PrInfo
+public class LocalPullRequest
 {
     public int Number { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Author { get; set; } = string.Empty;
     public DateTime MergedAt { get; set; }
-    public string Team { get; set; } = string.Empty;
-    public Dictionary<string, int> FileCountByProjectGroup { get; set; } = new();
-    public List<LocalPullRequestFile> Files { get; set; } = new();
+    public string Body { get; set; } = string.Empty;
+    public string MergeCommitSha { get; set; } = string.Empty;
+    public bool IsRollupPr { get; set; }
 }

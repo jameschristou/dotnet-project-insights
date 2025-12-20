@@ -116,36 +116,38 @@ class Program
         var allProjectGroups = projectDiscovery.GetAllProjectGroups();
         Console.WriteLine();
 
-        // 3. Initialize GitHub service
+        // 3. Initialize GitHub service (for PR discovery)
         var githubService = new GitHubService(config.GitHubPat, config.GitHubOwner, config.GitHubRepo);
+        
+        // 4. Initialize Git service (for file analysis)
+        var gitService = new GitService(config.RepoPath);
         Console.WriteLine();
 
-        // 4. Analyze PRs
+        // 5. Analyze PRs
         var prAnalysisService = new PrAnalysisService(
             projectDiscovery,
             githubService,
+            gitService,
             configService,
             config.RepoPath,
-            teams,
-            config.GitHubOwner,
-            config.GitHubRepo);
+            teams);
 
         var prBatchProcessor = new PrBatchProcessor(prAnalysisService, githubService);
 
         var prInfos = await prBatchProcessor.ProcessPrsInBatchesAsync(config.StartDate, config.EndDate, config.GitHubBaseBranch);
         Console.WriteLine();
 
-        // 5. Get detailed stats
+        // 6. Get detailed stats
         var projectGroupStats = await prAnalysisService.AnalyzeWithDetailedStatsAsync(prInfos);
         Console.WriteLine();
 
-        // 6. Build teams matrix
+        // 7. Build teams matrix
         var dataAggregation = new DataAggregationService();
         var teamsMatrix = dataAggregation.BuildTeamsMatrix(prInfos, allProjectGroups, teams);
         var allTeams = dataAggregation.GetAllTeamNames(teams);
         Console.WriteLine();
 
-        // 7. Export to Google Sheets
+        // 8. Export to Google Sheets
         var googleSheetsService = new GoogleSheetsService(config.GoogleCredsPath, config.SpreadsheetId);
         await googleSheetsService.ExportDataAsync(
             projectGroupStats,

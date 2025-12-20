@@ -1,5 +1,5 @@
-using Octokit;
 using ProjectInsights.Models;
+using System.Text.RegularExpressions;
 
 namespace ProjectInsights.Services;
 
@@ -7,56 +7,45 @@ public class PrAnalysisService
 {
     private readonly ProjectDiscoveryService _projectDiscovery;
     private readonly GitHubService _gitHubService;
+    private readonly GitService _gitService;
     private readonly ConfigurationService _configService;
     private readonly string _repoPath;
     private readonly List<Models.Team> _teams;
-    private readonly string _repoOwner;
-    private readonly string _repoName;
 
     public PrAnalysisService(
         ProjectDiscoveryService projectDiscovery,
         GitHubService gitHubService,
+        GitService gitService,
         ConfigurationService configService,
         string repoPath,
-        List<Models.Team> teams,
-        string repoOwner,
-        string repoName)
+        List<Models.Team> teams)
     {
         _projectDiscovery = projectDiscovery;
         _gitHubService = gitHubService;
+        _gitService = gitService;
         _configService = configService;
         _repoPath = repoPath;
         _teams = teams;
-        _repoOwner = repoOwner;
-        _repoName = repoName;
     }
 
     /// <summary>
-    /// Determines if a PR should be processed (i.e., is not a release PR).
-    /// Only counts PR links from the same repository as specified in constructor.
+    /// Determines if a PR should be processed (i.e., is not a rollup PR).
+    /// Rollup PRs are already expanded into individual PRs by GitHubService.
     /// </summary>
     /// <param name="pr">The pull request to check.</param>
     /// <returns>True if the PR should be processed, false if it should be ignored.</returns>
-    public bool ShouldProcessPr(PullRequest pr)
+    public bool ShouldProcessPr(LocalPullRequest pr)
     {
-        // Check if title contains 'release' (case-insensitive)
-        if (pr.Title != null && pr.Title.ToLower().Contains("release"))
+        // Skip rollup PRs (we process the individual PRs instead)
+        if (pr.IsRollupPr)
             return false;
 
-        // Check if body contains links to 2 or more other PRs from the same repo
-        if (!string.IsNullOrEmpty(pr.Body) && !string.IsNullOrEmpty(_repoOwner) && !string.IsNullOrEmpty(_repoName))
-        {
-            // Regex for PR links in this repo: https://github.com/{owner}/{repo}/pull/{number}
-            var prLinkPattern = $@"https://github\\.com/{System.Text.RegularExpressions.Regex.Escape(_repoOwner)}/{System.Text.RegularExpressions.Regex.Escape(_repoName)}/pull/\\d+";
-            var matches = System.Text.RegularExpressions.Regex.Matches(pr.Body, prLinkPattern);
-            if (matches.Count >= 2)
-                return false;
-        }
         return true;
     }
 
     public async Task<List<PrInfo>> AnalyzePullRequestsAsync(DateTime startDate, DateTime endDate, string baseBranch)
     {
+        // Get PRs from GitHub API (includes rollup expansion)
         var prs = await _gitHubService.GetMergedPullRequestsAsync(startDate, endDate, baseBranch);
         var prInfoList = new List<PrInfo>();
 
@@ -65,15 +54,24 @@ public class PrAnalysisService
         {
             if (!ShouldProcessPr(pr))
             {
-                Console.WriteLine($"Skipping PR #{pr.Number}: {pr.Title}");
+                Console.WriteLine($"Skipping rollup PR #{pr.Number}: {pr.Title}");
                 continue;
             }
 
             count++;
             Console.WriteLine($"Analyzing PR #{pr.Number}: {pr.Title} ({count}/{prs.Count})");
 
-            // Get files changed in this PR
-            var files = await _gitHubService.GetPullRequestFilesAsync(pr.Number);
+            // Get files changed in this PR using LibGit2Sharp
+            List<LocalPullRequestFile> files;
+            try
+            {
+                files = _gitService.GetPullRequestFiles(pr.MergeCommitSha);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  Warning: Could not analyze files for PR #{pr.Number}: {ex.Message}");
+                files = new List<LocalPullRequestFile>();
+            }
 
             // Group files by project group
             var filesByProjectGroup = new Dictionary<string, int>();
@@ -91,11 +89,11 @@ public class PrAnalysisService
             {
                 Number = pr.Number,
                 Title = pr.Title,
-                Author = pr.User.Login,
-                MergedAt = pr.MergedAt!.Value.DateTime,
-                Team = _configService.GetTeamForAuthor(_teams, pr.User.Login),
+                Author = pr.Author,
+                MergedAt = pr.MergedAt,
+                Team = _configService.GetTeamForAuthor(_teams, pr.Author),
                 FileCountByProjectGroup = filesByProjectGroup,
-                Files = files.ToList() // Store detailed file info
+                Files = files
             };
 
             prInfoList.Add(prInfo);
@@ -148,9 +146,7 @@ public class PrAnalysisService
             }
         }
 
-        // For LOC and file stats, we need to analyze commits with LibGit2Sharp
-        // This is a simplified version - in production, you'd need to map PRs to commits
-        // For now, we'll use the GitHub API file stats
+        // For LOC and file stats, we use the file stats from our Git analysis
         foreach (var prInfo in prInfos)
         {
             foreach (var kvp in prInfo.FileCountByProjectGroup)
@@ -161,7 +157,6 @@ public class PrAnalysisService
                 if (stats.ContainsKey(projectGroup))
                 {
                     stats[projectGroup].FilesModified += fileCount;
-                    // Note: We'll need to enhance this with actual LOC and add/delete detection
                 }
             }
         }
@@ -169,7 +164,7 @@ public class PrAnalysisService
         return stats;
     }
 
-    public async Task<Dictionary<string, ProjectGroupStats>> AnalyzeWithDetailedStatsAsync(List<PrInfo> prInfos)
+    public Task<Dictionary<string, ProjectGroupStats>> AnalyzeWithDetailedStatsAsync(List<PrInfo> prInfos)
     {
         Console.WriteLine("Calculating detailed project group statistics with file analysis...");
         
@@ -231,6 +226,6 @@ public class PrAnalysisService
             stats[kvp.Key].PrCount = kvp.Value.Count;
         }
 
-        return stats;
+        return Task.FromResult(stats);
     }
 }
