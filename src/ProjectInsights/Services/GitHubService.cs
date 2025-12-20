@@ -76,44 +76,6 @@ public class GitHubService
 
             pullRequestsDict[prNumber] = localPr;
 
-            // If this is a rollup PR, extract individual PRs from the body
-            //if (isRollupPr)
-            //{
-            //    Console.WriteLine($"Detected rollup PR #{prNumber}, extracting individual PRs...");
-            //    var individualPrNumbers = ExtractPrNumbersFromBody(pr.Body ?? string.Empty);
-                
-            //    foreach (var individualPrNumber in individualPrNumbers)
-            //    {
-            //        // Don't overwrite if we already have this PR
-            //        if (!pullRequestsDict.ContainsKey(individualPrNumber))
-            //        {
-            //            try
-            //            {
-            //                var individualPr = await _client.PullRequest.Get(_owner, _repo, individualPrNumber);
-                            
-            //                var individualLocalPr = new LocalPullRequest
-            //                {
-            //                    Number = individualPr.Number,
-            //                    Title = individualPr.Title,
-            //                    Author = individualPr.User.Login,
-            //                    MergedAt = localPr.MergedAt, // Use rollup merge time
-            //                    Body = individualPr.Body ?? string.Empty,
-            //                    MergeCommitSha = individualPr.MergeCommitSha ?? string.Empty,
-            //                    IsRollupPr = false
-            //                };
-
-            //                pullRequestsDict[individualPrNumber] = individualLocalPr;
-            //            }
-            //            catch (NotFoundException)
-            //            {
-            //                Console.WriteLine($"  Warning: PR #{individualPrNumber} not found, skipping");
-            //            }
-            //        }
-            //    }
-                
-            //    Console.WriteLine($"  Extracted {individualPrNumbers.Count} individual PRs from rollup");
-            //}
-
             // Check rate limit periodically
             if (pullRequestsDict.Count % 50 == 0)
             {
