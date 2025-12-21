@@ -10,6 +10,11 @@
   <ItemGroup>
     <PackageReference Include="Google.Apis.Sheets.v4" Version="1.72.0.3966" />
     <PackageReference Include="LibGit2Sharp" Version="0.31.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     <PackageReference Include="Octokit" Version="14.0.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.0" />
   </ItemGroup>

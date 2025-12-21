@@ -68,7 +68,7 @@ public class GitHubService
                 Number = pr.Number,
                 Title = pr.Title,
                 Author = pr.User.Login,
-                MergedAt = pr.MergedAt!.Value.DateTime,
+                MergedAt = DateTime.SpecifyKind(pr.MergedAt!.Value.DateTime, DateTimeKind.Utc),
                 Body = pr.Body ?? string.Empty,
                 MergeCommitSha = pr.MergeCommitSha ?? string.Empty,
                 IsRollupPr = isRollupPr

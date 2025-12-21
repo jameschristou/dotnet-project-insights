@@ -66,6 +66,13 @@ public class PrAnalysisService
             try
             {
                 files = _gitService.GetPullRequestFiles(pr.MergeCommitSha);
+                
+                // Calculate project information for each file
+                foreach (var file in files)
+                {
+                    file.ProjectGroup = _projectDiscovery.GetProjectGroupForFile(file.FileName);
+                    file.ProjectName = GetProjectNameForFile(file.FileName);
+                }
             }
             catch (Exception ex)
             {
@@ -77,12 +84,11 @@ public class PrAnalysisService
             var filesByProjectGroup = new Dictionary<string, int>();
             foreach (var file in files)
             {
-                var projectGroup = _projectDiscovery.GetProjectGroupForFile(file.FileName);
-                if (!filesByProjectGroup.ContainsKey(projectGroup))
+                if (!filesByProjectGroup.ContainsKey(file.ProjectGroup))
                 {
-                    filesByProjectGroup[projectGroup] = 0;
+                    filesByProjectGroup[file.ProjectGroup] = 0;
                 }
-                filesByProjectGroup[projectGroup]++;
+                filesByProjectGroup[file.ProjectGroup]++;
             }
 
             var prInfo = new PrInfo
@@ -100,6 +106,43 @@ public class PrAnalysisService
         }
 
         return prInfoList;
+    }
+
+    private string GetProjectNameForFile(string fileName)
+    {
+        // Extract project name from file path
+        // Assuming structure: Basics/Payroll/ProjectName/...
+        var parts = fileName.Split('/', '\\');
+        
+        // Find the first part that looks like a .csproj project name
+        // (contains dots and starts with uppercase)
+        foreach (var part in parts)
+        {
+            if (!string.IsNullOrEmpty(part) && 
+                part != "src" && 
+                part != "Basics" &&
+                part.Contains(".") && 
+                part.Length > 0 &&
+                char.IsUpper(part[0]))
+            {
+                return part;
+            }
+        }
+
+        // Fallback: look for any capitalized directory name
+        foreach (var part in parts)
+        {
+            if (!string.IsNullOrEmpty(part) && 
+                part != "src" && 
+                part != "Basics" &&
+                part.Length > 0 &&
+                char.IsUpper(part[0]))
+            {
+                return part;
+            }
+        }
+
+        return "Unknown";
     }
 
     public Dictionary<string, ProjectGroupStats> CalculateProjectGroupStats(List<PrInfo> prInfos)
@@ -190,7 +233,7 @@ public class PrAnalysisService
 
             foreach (var file in files)
             {
-                var projectGroup = _projectDiscovery.GetProjectGroupForFile(file.FileName);
+                var projectGroup = file.ProjectGroup;
 
                 if (!stats.ContainsKey(projectGroup))
                 {
