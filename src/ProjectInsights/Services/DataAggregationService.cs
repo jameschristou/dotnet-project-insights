@@ -27,24 +27,24 @@ public class DataAggregationService
         // Populate the matrix
         foreach (var prInfo in prInfos)
         {
-            foreach (var projectGroup in prInfo.FileCountByProjectGroup.Keys)
+            foreach (var projectName in prInfo.FileCountByProjectName.Keys)
             {
-                if (!matrix.ContainsKey(projectGroup))
+                if (!matrix.ContainsKey(projectName))
                 {
-                    matrix[projectGroup] = new Dictionary<string, int>();
+                    matrix[projectName] = new Dictionary<string, int>();
                     foreach (var team in teams)
                     {
-                        matrix[projectGroup][team.TeamName] = 0;
+                        matrix[projectName][team.TeamName] = 0;
                     }
-                    matrix[projectGroup]["Unassigned"] = 0;
+                    matrix[projectName]["Unassigned"] = 0;
                 }
 
-                if (!matrix[projectGroup].ContainsKey(prInfo.Team))
+                if (!matrix[projectName].ContainsKey(prInfo.Team))
                 {
-                    matrix[projectGroup][prInfo.Team] = 0;
+                    matrix[projectName][prInfo.Team] = 0;
                 }
 
-                matrix[projectGroup][prInfo.Team]++;
+                matrix[projectName][prInfo.Team]++;
             }
         }
 

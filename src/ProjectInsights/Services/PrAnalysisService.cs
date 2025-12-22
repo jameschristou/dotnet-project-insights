@@ -1,5 +1,4 @@
 using ProjectInsights.Models;
-using System.Text.RegularExpressions;
 
 namespace ProjectInsights.Services;
 
@@ -70,8 +69,7 @@ public class PrAnalysisService
                 // Calculate project information for each file
                 foreach (var file in files)
                 {
-                    file.ProjectGroup = _projectDiscovery.GetProjectGroupForFile(file.FileName);
-                    file.ProjectName = GetProjectNameForFile(file.FileName);
+                    file.ProjectName = _projectDiscovery.GetProjectNameForFile(file.FileName);
                 }
             }
             catch (Exception ex)
@@ -80,15 +78,15 @@ public class PrAnalysisService
                 files = new List<LocalPullRequestFile>();
             }
 
-            // Group files by project group
-            var filesByProjectGroup = new Dictionary<string, int>();
+            // Group files by project name
+            var filesByProjectName = new Dictionary<string, int>();
             foreach (var file in files)
             {
-                if (!filesByProjectGroup.ContainsKey(file.ProjectGroup))
+                if (!filesByProjectName.ContainsKey(file.ProjectName))
                 {
-                    filesByProjectGroup[file.ProjectGroup] = 0;
+                    filesByProjectName[file.ProjectName] = 0;
                 }
-                filesByProjectGroup[file.ProjectGroup]++;
+                filesByProjectName[file.ProjectName]++;
             }
 
             var prInfo = new PrInfo
@@ -98,7 +96,7 @@ public class PrAnalysisService
                 Author = pr.Author,
                 MergedAt = pr.MergedAt,
                 Team = _configService.GetTeamForAuthor(_teams, pr.Author),
-                FileCountByProjectGroup = filesByProjectGroup,
+                FileCountByProjectName = filesByProjectName,
                 Files = files
             };
 
@@ -106,105 +104,6 @@ public class PrAnalysisService
         }
 
         return prInfoList;
-    }
-
-    private string GetProjectNameForFile(string fileName)
-    {
-        // Extract project name from file path
-        // Assuming structure: Basics/Payroll/ProjectName/...
-        var parts = fileName.Split('/', '\\');
-        
-        // Find the first part that looks like a .csproj project name
-        // (contains dots and starts with uppercase)
-        foreach (var part in parts)
-        {
-            if (!string.IsNullOrEmpty(part) && 
-                part != "src" && 
-                part != "Basics" &&
-                part.Contains(".") && 
-                part.Length > 0 &&
-                char.IsUpper(part[0]))
-            {
-                return part;
-            }
-        }
-
-        // Fallback: look for any capitalized directory name
-        foreach (var part in parts)
-        {
-            if (!string.IsNullOrEmpty(part) && 
-                part != "src" && 
-                part != "Basics" &&
-                part.Length > 0 &&
-                char.IsUpper(part[0]))
-            {
-                return part;
-            }
-        }
-
-        return "Unknown";
-    }
-
-    public Dictionary<string, ProjectGroupStats> CalculateProjectGroupStats(List<PrInfo> prInfos)
-    {
-        Console.WriteLine("Calculating project group statistics...");
-        
-        var stats = new Dictionary<string, ProjectGroupStats>();
-        var allProjectGroups = _projectDiscovery.GetAllProjectGroups();
-
-        // Initialize stats for all known project groups
-        foreach (var group in allProjectGroups)
-        {
-            stats[group] = new ProjectGroupStats
-            {
-                ProjectGroupName = group
-            };
-        }
-
-        // Use LibGit2Sharp to get detailed file changes with whitespace ignore
-        using var repo = new LibGit2Sharp.Repository(_repoPath);
-
-        foreach (var prInfo in prInfos)
-        {
-            var prProjectGroups = new HashSet<string>();
-
-            foreach (var kvp in prInfo.FileCountByProjectGroup)
-            {
-                var projectGroup = kvp.Key;
-                prProjectGroups.Add(projectGroup);
-
-                if (!stats.ContainsKey(projectGroup))
-                {
-                    stats[projectGroup] = new ProjectGroupStats
-                    {
-                        ProjectGroupName = projectGroup
-                    };
-                }
-            }
-
-            // Increment PR count for each project group touched by this PR
-            foreach (var projectGroup in prProjectGroups)
-            {
-                stats[projectGroup].PrCount++;
-            }
-        }
-
-        // For LOC and file stats, we use the file stats from our Git analysis
-        foreach (var prInfo in prInfos)
-        {
-            foreach (var kvp in prInfo.FileCountByProjectGroup)
-            {
-                var projectGroup = kvp.Key;
-                var fileCount = kvp.Value;
-
-                if (stats.ContainsKey(projectGroup))
-                {
-                    stats[projectGroup].FilesModified += fileCount;
-                }
-            }
-        }
-
-        return stats;
     }
 
     public Task<Dictionary<string, ProjectGroupStats>> AnalyzeWithDetailedStatsAsync(List<PrInfo> prInfos)
@@ -233,32 +132,32 @@ public class PrAnalysisService
 
             foreach (var file in files)
             {
-                var projectGroup = file.ProjectGroup;
+                var projectName = file.ProjectName;
 
-                if (!stats.ContainsKey(projectGroup))
+                if (!stats.ContainsKey(projectName))
                 {
-                    stats[projectGroup] = new ProjectGroupStats
+                    stats[projectName] = new ProjectGroupStats
                     {
-                        ProjectGroupName = projectGroup
+                        ProjectGroupName = projectName
                     };
                 }
 
-                if (!prsByProjectGroup.ContainsKey(projectGroup))
+                if (!prsByProjectGroup.ContainsKey(projectName))
                 {
-                    prsByProjectGroup[projectGroup] = new HashSet<int>();
+                    prsByProjectGroup[projectName] = new HashSet<int>();
                 }
-                prsByProjectGroup[projectGroup].Add(prInfo.Number);
+                prsByProjectGroup[projectName].Add(prInfo.Number);
 
                 // Accumulate stats
-                stats[projectGroup].TotalLinesChanged += file.Changes;
+                stats[projectName].TotalLinesChanged += file.Changes;
 
                 if (file.Status == "added")
                 {
-                    stats[projectGroup].FilesAdded++;
+                    stats[projectName].FilesAdded++;
                 }
-                else if (file.Status == "modified" || file.Status == "removed" || file.Status == "renamed")
+                else if (file.Status == "modified" || file.Status == "renamed")
                 {
-                    stats[projectGroup].FilesModified++;
+                    stats[projectName].FilesModified++;
                 }
             }
         }

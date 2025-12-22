@@ -103,7 +103,7 @@ public class DatabaseExportService
                     PullRequestId = pullRequest.Id,
                     FileName = file.FileName,
                     ProjectName = file.ProjectName,
-                    ProjectGroup = file.ProjectGroup,
+                    ProjectGroup = _projectDiscovery.GetProjectGroup(file.ProjectName),
                     Status = file.Status,
                     Additions = file.Additions,
                     Deletions = file.Deletions,
@@ -114,22 +114,16 @@ public class DatabaseExportService
             }
 
             // Add projects (aggregated from files)
-            foreach (var kvp in prInfo.FileCountByProjectGroup)
+            foreach (var kvp in prInfo.FileCountByProjectName)
             {
-                var projectGroup = kvp.Key;
+                var projectName = kvp.Key;
                 var fileCount = kvp.Value;
-
-                // Get project name from first file in this project group
-                var projectName = prInfo.Files
-                    .Where(f => f.ProjectGroup == projectGroup)
-                    .Select(f => f.ProjectName)
-                    .FirstOrDefault() ?? projectGroup;
 
                 var prProject = new PrProject
                 {
                     PullRequestId = pullRequest.Id,
                     ProjectName = projectName,
-                    ProjectGroup = projectGroup,
+                    ProjectGroup = _projectDiscovery.GetProjectGroup(projectName),
                     FileCount = fileCount
                 };
 
@@ -154,7 +148,6 @@ public class DatabaseExportService
             foreach (var file in prInfo.Files)
             {
                 var projectName = file.ProjectName;
-                var projectGroup = file.ProjectGroup;
 
                 // Update daily project stats
                 var projectKey = (day, projectName);
@@ -164,7 +157,7 @@ public class DatabaseExportService
                     {
                         Day = day,
                         ProjectName = projectName,
-                        ProjectGroup = projectGroup,
+                        ProjectGroup = _projectDiscovery.GetProjectGroup(projectName),
                         PrCount = 0,
                         TotalLinesChanged = 0,
                         FilesModified = 0,
@@ -198,7 +191,7 @@ public class DatabaseExportService
                     {
                         Day = day,
                         ProjectName = projectName,
-                        ProjectGroup = projectGroup,
+                        ProjectGroup = _projectDiscovery.GetProjectGroup(projectName),
                         TeamName = prInfo.Team,
                         PrCount = 0
                     };

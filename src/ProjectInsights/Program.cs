@@ -256,8 +256,8 @@ class Program
         List<Models.Team> teams)
     {
         // Get detailed stats
-        var projectGroupStats = await prAnalysisService.AnalyzeWithDetailedStatsAsync(prInfos);
-        Console.WriteLine();
+        //var projectGroupStats = await prAnalysisService.AnalyzeWithDetailedStatsAsync(prInfos);
+        //Console.WriteLine();
 
         // Build teams matrix
         var dataAggregation = new DataAggregationService();
@@ -265,13 +265,13 @@ class Program
         var allTeams = dataAggregation.GetAllTeamNames(teams);
         Console.WriteLine();
 
-        // Export to Google Sheets
-        var googleSheetsService = new GoogleSheetsService(config.GoogleCredsPath, config.SpreadsheetId);
-        await googleSheetsService.ExportDataAsync(
-            projectGroupStats,
-            prInfos,
-            teamsMatrix,
-            allProjectGroups,
-            allTeams);
+        //// Export to Google Sheets
+        //var googleSheetsService = new GoogleSheetsService(config.GoogleCredsPath, config.SpreadsheetId);
+        //await googleSheetsService.ExportDataAsync(
+        //    projectGroupStats,
+        //    prInfos,
+        //    teamsMatrix,
+        //    allProjectGroups,
+        //    allTeams);
     }
 }

@@ -130,11 +130,11 @@ public class GoogleSheetsService
             };
 
             // Add file counts for each project group
-            foreach (var projectGroup in allProjectGroups)
-            {
-                var fileCount = pr.FileCountByProjectGroup.TryGetValue(projectGroup, out var count) ? count : 0;
-                row.Add(fileCount);
-            }
+            //foreach (var projectGroup in allProjectGroups)
+            //{
+            //    var fileCount = pr.FileCountByProjectGroup.TryGetValue(projectGroup, out var count) ? count : 0;
+            //    row.Add(fileCount);
+            //}
 
             values.Add(row);
         }

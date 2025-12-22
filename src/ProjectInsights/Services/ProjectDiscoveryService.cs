@@ -6,6 +6,7 @@ public class ProjectDiscoveryService
     private readonly List<string> _projectGroups;
     private Dictionary<string, string> _projectToGroupMap = new();
     private Dictionary<string, string> _filePathToGroupMap = new();
+    private Dictionary<string, string> _directoryToProjectNameMap = new();
 
     public ProjectDiscoveryService(string repoPath, List<string> projectGroups)
     {
@@ -32,10 +33,35 @@ public class ProjectDiscoveryService
             if (!string.IsNullOrEmpty(projectDir))
             {
                 _filePathToGroupMap[projectDir] = projectGroup;
+                _directoryToProjectNameMap[projectDir] = projectName;
             }
         }
 
         Console.WriteLine($"Mapped to {_projectToGroupMap.Values.Distinct().Count()} unique project groups");
+    }
+
+    public string GetProjectNameForFile(string filePath)
+    {
+        // Convert to absolute path if needed
+        var absolutePath = Path.IsPathRooted(filePath) 
+            ? filePath 
+            : Path.Combine(_repoPath, filePath);
+
+        // Normalize path separators
+        absolutePath = Path.GetFullPath(absolutePath);
+
+        // Find the closest matching project directory (longest path match)
+        var matchingDir = _directoryToProjectNameMap.Keys
+            .Where(dir => absolutePath.StartsWith(dir, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(dir => dir.Length)
+            .FirstOrDefault();
+
+        if (matchingDir != null)
+        {
+            return _directoryToProjectNameMap[matchingDir];
+        }
+
+        return "Unknown";
     }
 
     public string GetProjectGroupForFile(string filePath)
@@ -78,7 +104,7 @@ public class ProjectDiscoveryService
         return groups;
     }
 
-    private string GetProjectGroup(string projectName)
+    public string GetProjectGroup(string projectName)
     {
         // Use longest-prefix-first matching (list is already sorted by length descending)
         foreach (var group in _projectGroups)
