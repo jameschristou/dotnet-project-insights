@@ -64,7 +64,17 @@ public class PrAnalysisService
             List<LocalPullRequestFile> files;
             try
             {
-                files = _gitService.GetPullRequestFiles(pr.MergeCommitSha);
+                // Use head/base comparison for accurate file tracking
+                // This compares the PR's branch tip against its base, showing only the PR's changes
+                if (!string.IsNullOrEmpty(pr.HeadSha) && !string.IsNullOrEmpty(pr.BaseSha))
+                {
+                    files = _gitService.GetPullRequestFilesByHeadAndBase(pr.HeadSha, pr.BaseSha);
+                }
+                else
+                {
+                    // Fallback to merge commit analysis if head/base not available
+                    files = _gitService.GetPullRequestFiles(pr.MergeCommitSha);
+                }
                 
                 // Calculate project information for each file
                 foreach (var file in files)

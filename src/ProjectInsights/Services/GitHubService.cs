@@ -71,6 +71,8 @@ public class GitHubService
                 MergedAt = DateTime.SpecifyKind(pr.MergedAt!.Value.DateTime, DateTimeKind.Utc),
                 Body = pr.Body ?? string.Empty,
                 MergeCommitSha = pr.MergeCommitSha ?? string.Empty,
+                HeadSha = pr.Head.Sha,
+                BaseSha = pr.Base.Sha,
                 IsRollupPr = isRollupPr
             };
 
