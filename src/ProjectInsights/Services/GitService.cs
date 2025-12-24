@@ -83,6 +83,7 @@ public class GitService
     /// <summary>
     /// Gets the files changed in a PR by comparing the PR's head commit against its base commit.
     /// This is more accurate for PRs merged in rollups, as it shows only the PR's actual changes.
+    /// Uses the merge base (common ancestor) to avoid including changes from other PRs.
     /// </summary>
     public List<LocalPullRequestFile> GetPullRequestFilesByHeadAndBase(string headSha, string baseSha)
     {
@@ -100,13 +101,21 @@ public class GitService
             throw new InvalidOperationException($"Base commit {baseSha} not found");
         }
 
-        // Compare the PR head with the base to get the changes made in the PR
+        // Find the merge base (common ancestor) between head and base
+        // This is the actual point where the PR branch diverged from the base branch
+        var mergeBase = repo.ObjectDatabase.FindMergeBase(headCommit, baseCommit);
+        if (mergeBase == null)
+        {
+            throw new InvalidOperationException($"Could not find merge base between {headSha} and {baseSha}");
+        }
+
+        // Compare the PR head with the merge base to get only the PR's changes
         var compareOptions = new CompareOptions
         {
             Similarity = SimilarityOptions.Renames
         };
 
-        var changes = repo.Diff.Compare<TreeChanges>(baseCommit.Tree, headCommit.Tree, compareOptions);
+        var changes = repo.Diff.Compare<TreeChanges>(mergeBase.Tree, headCommit.Tree, compareOptions);
         
         var files = new List<LocalPullRequestFile>();
         
@@ -119,7 +128,7 @@ public class GitService
                 ContextLines = 0 // Minimize context to focus on actual changes
             };
             
-            var patch = repo.Diff.Compare<Patch>(baseCommit.Tree, headCommit.Tree, new[] { change.Path }, null, patchOptions);
+            var patch = repo.Diff.Compare<Patch>(mergeBase.Tree, headCommit.Tree, new[] { change.Path }, null, patchOptions);
             var filePatch = patch[change.Path];
             
             var status = change.Status switch
