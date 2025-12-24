@@ -24,9 +24,9 @@ public class GitHubService
     /// <summary>
     /// Gets merged PRs using GitHub API, including detecting and expanding rollup PRs.
     /// </summary>
-    public async Task<List<LocalPullRequest>> GetMergedPullRequestsAsync(DateTime startDate, DateTime endDate, string baseBranch)
+    public async Task<List<LocalPullRequest>> GetMergedPullRequestsAsync(DateTime dayMerged, string baseBranch)
     {
-        Console.WriteLine($"Fetching PRs merged between {startDate:yyyy-MM-dd} and {endDate:yyyy-MM-dd} into branch '{baseBranch}'...");
+        Console.WriteLine($"Fetching PRs merged on {dayMerged:yyyy-MM-dd} into branch '{baseBranch}'...");
 
         // Use GitHub Search API with date filtering and base branch
         var searchRequest = new SearchIssuesRequest
@@ -34,7 +34,7 @@ public class GitHubService
             Type = IssueTypeQualifier.PullRequest,
             Repos = new RepositoryCollection { $"{_owner}/{_repo}" },
             Is = new[] { IssueIsQualifier.Merged },
-            Merged = new DateRange(startDate, endDate),
+            Merged = new DateRange(dayMerged, dayMerged),
             Base = baseBranch
         };
 

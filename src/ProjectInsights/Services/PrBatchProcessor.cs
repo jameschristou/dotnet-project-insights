@@ -19,16 +19,19 @@ namespace ProjectInsights.Services
         public async Task<List<PrInfo>> ProcessPrsInBatchesAsync(DateTime startDate, DateTime endDate, string baseBranch)
         {
             var allPrInfos = new List<PrInfo>();
-            DateTime batchStart = startDate;
-            DateTime batchEnd = batchStart.AddDays(1);
+            DateTime currentDay = startDate;
 
-            while (batchStart < endDate)
+            while (currentDay < endDate)
             {
-                if (batchEnd > endDate)
-                    batchEnd = endDate;
+                Console.WriteLine($"Processing PRs for batch: {currentDay:yyyy-MM-dd HH:mm:ss} UTC (base branch: {baseBranch})");
+                var prInfos = await _prAnalysisService.AnalyzePullRequestsAsync(currentDay, baseBranch);
 
-                Console.WriteLine($"Processing PRs for batch: {batchStart:yyyy-MM-dd} to {batchEnd:yyyy-MM-dd} (base branch: {baseBranch})");
-                var prInfos = await _prAnalysisService.AnalyzePullRequestsAsync(batchStart, batchEnd, baseBranch);
+                Console.WriteLine($"Found {prInfos.Count} PRs in this batch");
+                if (prInfos.Count > 0)
+                {
+                    Console.WriteLine($"  First PR: #{prInfos.First().Number} merged at {prInfos.First().MergedAt:yyyy-MM-dd HH:mm:ss} UTC");
+                    Console.WriteLine($"  Last PR: #{prInfos.Last().Number} merged at {prInfos.Last().MergedAt:yyyy-MM-dd HH:mm:ss} UTC");
+                }
 
                 allPrInfos.AddRange(prInfos);
 
@@ -41,8 +44,7 @@ namespace ProjectInsights.Services
                     await _gitHubService.CheckRateLimitAsync();
                 }
 
-                batchStart = batchEnd;
-                batchEnd = batchStart.AddDays(1);
+                currentDay = currentDay.AddDays(1);
             }
 
             return allPrInfos;

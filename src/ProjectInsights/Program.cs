@@ -37,10 +37,12 @@ class Program
                 switch (key)
                 {
                     case "--start-date":
-                        config.StartDate = DateTime.SpecifyKind(DateTime.Parse(value), DateTimeKind.Utc);
+                        // Parse as local date at midnight, then convert to UTC
+                        config.StartDate = DateTime.Parse(value).ToUniversalTime();
                         break;
                     case "--end-date":
-                        config.EndDate = DateTime.SpecifyKind(DateTime.Parse(value), DateTimeKind.Utc);
+                        // Parse as local date at midnight, then convert to UTC
+                        config.EndDate = DateTime.Parse(value).ToUniversalTime();
                         break;
                     case "--project-groups":
                         config.ProjectGroupsPath = value;
@@ -114,7 +116,8 @@ class Program
         }
 
         Console.WriteLine("=== ProjectInsights ===");
-        Console.WriteLine($"Date Range: {config.StartDate:yyyy-MM-dd} to {config.EndDate:yyyy-MM-dd}");
+        Console.WriteLine($"Date Range: {config.StartDate:yyyy-MM-dd HH:mm:ss} UTC to {config.EndDate:yyyy-MM-dd HH:mm:ss} UTC");
+        Console.WriteLine($"Date Range (Local): {config.StartDate.ToLocalTime():yyyy-MM-dd HH:mm:ss} to {config.EndDate.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
         Console.WriteLine($"Repository: {config.GitHubOwner}/{config.GitHubRepo}");
         Console.WriteLine($"Local Path: {config.RepoPath}");
         Console.WriteLine();
@@ -187,11 +190,12 @@ class Program
         if (lastRun != null)
         {
             // Use the last run's end date as the new start date
-            config.StartDate = DateTime.SpecifyKind(lastRun.EndDate, DateTimeKind.Utc);
+            // EndDate is already stored as UTC in the database
+            config.StartDate = lastRun.EndDate;
             config.EndDate = config.StartDate.AddDays(1);
             
-            Console.WriteLine($"Found previous run ending on {lastRun.EndDate:yyyy-MM-dd}");
-            Console.WriteLine($"Continuing from {config.StartDate:yyyy-MM-dd} to {config.EndDate:yyyy-MM-dd}");
+            Console.WriteLine($"Found previous run ending on {lastRun.EndDate:yyyy-MM-dd HH:mm:ss} UTC");
+            Console.WriteLine($"Continuing from {config.StartDate:yyyy-MM-dd HH:mm:ss} UTC to {config.EndDate:yyyy-MM-dd HH:mm:ss} UTC");
         }
         else
         {

@@ -42,10 +42,10 @@ public class PrAnalysisService
         return true;
     }
 
-    public async Task<List<PrInfo>> AnalyzePullRequestsAsync(DateTime startDate, DateTime endDate, string baseBranch)
+    public async Task<List<PrInfo>> AnalyzePullRequestsAsync(DateTime dayMerged, string baseBranch)
     {
         // Get PRs from GitHub API (includes rollup expansion)
-        var prs = await _gitHubService.GetMergedPullRequestsAsync(startDate, endDate, baseBranch);
+        var prs = await _gitHubService.GetMergedPullRequestsAsync(dayMerged, baseBranch);
         var prInfoList = new List<PrInfo>();
 
         int count = 0;

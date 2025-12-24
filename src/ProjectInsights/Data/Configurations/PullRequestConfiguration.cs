@@ -23,7 +23,8 @@ public class PullRequestConfiguration : IEntityTypeConfiguration<PullRequest>
         builder.Property(x => x.IsRollupPr).HasColumnName("is_rollup_pr").IsRequired();
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("NOW()");
 
-        builder.HasIndex(x => new { x.AnalysisRunId, x.PrNumber }).IsUnique();
+        // Unique constraint on pr_number to ensure each PR is only processed once
+        builder.HasIndex(x => x.PrNumber).IsUnique();
 
         builder.HasMany(x => x.PrFiles)
             .WithOne(x => x.PullRequest)
