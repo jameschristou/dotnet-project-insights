@@ -28,8 +28,9 @@ public class PrAnalysisService
     }
 
     /// <summary>
-    /// Determines if a PR should be processed (i.e., is not a rollup PR).
+    /// Determines if a PR should be processed (i.e., is not a rollup PR or revert PR).
     /// Rollup PRs are already expanded into individual PRs by GitHubService.
+    /// Revert PRs are skipped as they undo previous changes.
     /// </summary>
     /// <param name="pr">The pull request to check.</param>
     /// <returns>True if the PR should be processed, false if it should be ignored.</returns>
@@ -37,6 +38,10 @@ public class PrAnalysisService
     {
         // Skip rollup PRs (we process the individual PRs instead)
         if (pr.IsRollupPr)
+            return false;
+
+        // Skip revert PRs
+        if (!string.IsNullOrEmpty(pr.Title) && pr.Title.Contains("revert", StringComparison.OrdinalIgnoreCase))
             return false;
 
         return true;
